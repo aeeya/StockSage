@@ -74,31 +74,43 @@ import java.util.*;
 @Service
 public class AIService {
 
-    // Simulasi logic AI sementara tunggu API Key betul
-    public Map<String, Object> getAdvice(String inventoryData) {
-        
-        // Kita buat format Map supaya Spring Boot automatik tukar jadi JSON untuk Aleeya
+    public Map<String, Object> getDecision() {
         Map<String, Object> response = new HashMap<>();
-        response.put("status", "success");
         
-        List<Map<String, String>> recommendations = new ArrayList<>();
-        
-        // Contoh data yang Z.AI akan hantar nanti
-        Map<String, String> rec1 = new HashMap<>();
-        rec1.put("item", "Susu Segar (1L)");
-        rec1.put("action", "Flash Sale: Diskaun 30% jam 4 PM hari ini.");
-        rec1.put("reason", "Stok tinggi (45 unit) & nak expire lagi 3 hari. Cuaca ramal hujan esok.");
-        
-        Map<String, String> rec2 = new HashMap<>();
-        rec2.put("item", "Roti Putih");
-        rec2.put("action", "Bundle Deal: Beli 2 pada harga RM5.");
-        rec2.put("reason", "Trend jualan perlahan minggu ini. Bagus untuk 'clearance'.");
+        // 1. Data untuk Stats Cards kat atas Dashboard
+        response.put("totalStockValue", "14,250.00");
+        response.put("profitAtRisk", "1,120.00");
+        response.put("estSavings", "845.00");
 
-        recommendations.add(rec1);
-        recommendations.add(rec2);
+        // 2. Data Inventory Health (Table)
+        List<Map<String, String>> inventory = new ArrayList<>();
+        inventory.add(createItem("Susu Segar (1L)", "45 units", "25 Apr 2026", "Critical", "DAIRY-001"));
+        inventory.add(createItem("Roti Gardenia Jumbo", "12 units", "28 Apr 2026", "Warning", "BAKE-102"));
+        inventory.add(createItem("Coklat Cadbury", "120 units", "15 Jun 2026", "Safe", "CONF-554"));
+        response.put("inventory", inventory);
+
+        // 3. Z.AI Strategy Panel (Right Side)
+        Map<String, Object> strategy = new HashMap<>();
+        strategy.put("recommendation", "Launch a 'Happy Hour: Buy 1 Free 1' campaign for Susu Segar starting today at 4:00 PM.");
         
-        response.put("recommendations", recommendations);
-        
+        List<String> logicInsights = Arrays.asList(
+            "Inventory: High stock (45 units) vs Low shelf life (3 days).",
+            "Environment: Rain forecast for tomorrow will drop foot traffic by 15%.",
+            "Goal: Liquidate stock before expiry to save RM300.00 in cost."
+        );
+        strategy.put("logic", logicInsights);
+        response.put("strategy", strategy);
+
         return response;
+    }
+
+    private Map<String, String> createItem(String name, String stock, String expiry, String status, String sku) {
+        Map<String, String> item = new HashMap<>();
+        item.put("name", name);
+        item.put("stock", stock);
+        item.put("expiry", expiry);
+        item.put("status", status);
+        item.put("sku", sku);
+        return item;
     }
 }
