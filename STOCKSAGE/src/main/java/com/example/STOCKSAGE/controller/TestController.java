@@ -26,10 +26,10 @@ public class TestController {
     @GetMapping("/get-advice")
     public String getAdvice() {
         List<Product> products = productRepository.findAll();
-        // Convert our products list to a simple string for the AI
+        // Convert our products list to a string
         String inventoryString = products.toString(); 
         
-        return aiService.getDecision(inventoryString);
+        // Use .getAdvice() to match your Mock AIService method name
+        return aiService.getAdvice(inventoryString);
     }
 }
-
