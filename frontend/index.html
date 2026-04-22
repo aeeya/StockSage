@@ -73,18 +73,19 @@
 </div>
 
 <script>
-    async function refreshDashboard() {
+    async function fetchFromFarhah() {
         try {
+            // Kita panggil port 8081 tempat Farhah run tadi
             const response = await fetch('http://localhost:8081/api/dashboard-data');
             const data = await response.json();
 
-            // Update Stats
+            // Update Stats Cards
             document.getElementById('stockValue').innerText = "RM " + data.totalStockValue;
             document.getElementById('profitRisk').innerText = "RM " + data.profitAtRisk;
             document.getElementById('estSavings').innerText = "RM " + data.estSavings;
 
-            // Update Strategy
-            document.getElementById('aiRec').innerText = '"' + data.strategy.recommendation + '"';
+            // Update AI Recommendation Panel
+            document.getElementById('aiRec').innerText = data.strategy.recommendation;
             
             let logicHtml = '';
             data.strategy.logic.forEach(line => {
@@ -92,7 +93,7 @@
             });
             document.getElementById('aiLogic').innerHTML = logicHtml;
 
-            // Update Table
+            // Update Table Inventory
             let tableHtml = '';
             data.inventory.forEach(item => {
                 let badgeClass = item.status === 'Critical' ? 'bg-danger' : (item.status === 'Warning' ? 'bg-warning text-dark' : 'bg-success');
@@ -107,12 +108,12 @@
             document.getElementById('inventoryTable').innerHTML = tableHtml;
 
         } catch (error) {
-            console.error("Gagal tarik data dari Backend Farhah:", error);
+            console.log("Aduh, tak boleh connect dengan Farhah! Make sure Spring Boot dah Run.", error);
         }
     }
 
-    // Jalankan function ni bila page buka
-    refreshDashboard();
+    // Terus panggil function ni bila page buka
+    fetchFromFarhah();
 </script>
 </body>
 </html>
