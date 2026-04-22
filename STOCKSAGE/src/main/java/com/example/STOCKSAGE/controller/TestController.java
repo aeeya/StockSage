@@ -5,11 +5,12 @@ import com.example.STOCKSAGE.repository.ProductRepository;
 import com.example.STOCKSAGE.service.AIService;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
-import java.util.List;
+import org.springframework.web.bind.annotation.*;
+import java.util.*;
 
 @RestController
+@RequestMapping("/api")
+@CrossOrigin(origins = "*") // Penting: Supaya Live Server Aleeya boleh access backend Farhah
 public class TestController {
 
     @Autowired
@@ -24,12 +25,14 @@ public class TestController {
     }
 
     @GetMapping("/get-advice")
-    public String getAdvice() {
+    public Map<String, Object> getAdvice() {
+        // Tarik data dari Oracle DB Ain
         List<Product> products = productRepository.findAll();
-        // Convert our products list to a string
+        
+        // Tukar list produk jadi String untuk hantar kat AI
         String inventoryString = products.toString(); 
         
-        // Use .getAdvice() to match your Mock AIService method name
+        // Panggil service AI
         return aiService.getAdvice(inventoryString);
     }
 }

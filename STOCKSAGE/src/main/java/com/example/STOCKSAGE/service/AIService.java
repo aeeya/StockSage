@@ -1,6 +1,6 @@
-package com.example.STOCKSAGE.service;
+/*package com.example.STOCKSAGE.service;
 
-/*import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.*;
@@ -46,7 +46,7 @@ public class AIService {
             return "Brain is sleepy: " + e.getMessage();
         }
     }
-}*/
+}
 
 import org.springframework.stereotype.Service;
 
@@ -63,5 +63,42 @@ public class AIService {
             + "  {\"item\": \"Nasi Lemak\", \"action\": \"Price +RM1\", \"reason\": \"Festival nearby tomorrow\"}"
             + "]"
             + "}";
+    }
+}*/
+
+package com.example.STOCKSAGE.service;
+
+import org.springframework.stereotype.Service;
+import java.util.*;
+
+@Service
+public class AIService {
+
+    // Simulasi logic AI sementara tunggu API Key betul
+    public Map<String, Object> getAdvice(String inventoryData) {
+        
+        // Kita buat format Map supaya Spring Boot automatik tukar jadi JSON untuk Aleeya
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "success");
+        
+        List<Map<String, String>> recommendations = new ArrayList<>();
+        
+        // Contoh data yang Z.AI akan hantar nanti
+        Map<String, String> rec1 = new HashMap<>();
+        rec1.put("item", "Susu Segar (1L)");
+        rec1.put("action", "Flash Sale: Diskaun 30% jam 4 PM hari ini.");
+        rec1.put("reason", "Stok tinggi (45 unit) & nak expire lagi 3 hari. Cuaca ramal hujan esok.");
+        
+        Map<String, String> rec2 = new HashMap<>();
+        rec2.put("item", "Roti Putih");
+        rec2.put("action", "Bundle Deal: Beli 2 pada harga RM5.");
+        rec2.put("reason", "Trend jualan perlahan minggu ini. Bagus untuk 'clearance'.");
+
+        recommendations.add(rec1);
+        recommendations.add(rec2);
+        
+        response.put("recommendations", recommendations);
+        
+        return response;
     }
 }
