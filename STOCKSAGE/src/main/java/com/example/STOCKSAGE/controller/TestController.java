@@ -1,5 +1,6 @@
 package com.example.STOCKSAGE.controller;
 
+import com.example.STOCKSAGE.model.Product;
 import com.example.STOCKSAGE.service.AIService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -18,4 +19,8 @@ public class TestController {
         // Terus panggil service untuk dapatkan data lengkap dashboard
         return aiService.getDecision();
     }
+
 }
+
+
+    

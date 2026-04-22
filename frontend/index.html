@@ -166,47 +166,67 @@
     async function fetchFromFarhah() {
         console.log("Tengah tarik data baru...");
         try {
+            // Pastikan URL ni tepat dengan Controller kau
             const response = await fetch('http://localhost:8081/api/dashboard-data');
-            const data = await response.json();
-
-            // Update Stats Cards
-            document.getElementById('stockValue').innerText = "RM " + data.totalStockValue;
-            document.getElementById('profitRisk').innerText = "RM " + data.profitAtRisk;
-            document.getElementById('estSavings').innerText = "RM " + data.estSavings;
-
-            // Update AI Recommendation Panel
-            document.getElementById('aiRec').innerText = '"' + data.strategy.recommendation + '"';
             
-            let logicHtml = '';
-            data.strategy.logic.forEach(line => {
-                logicHtml += `<li class="mb-2">${line}</li>`;
-            });
-            document.getElementById('aiLogic').innerHTML = logicHtml;
+            if (!response.ok) {
+                throw new Error('Respons server tidak ok');
+            }
 
-            // Update Table Inventory
+            const data = await response.json();
+            console.log("Data diterima dari database:", data);
+
+            // 1. Update Stats Cards
+            document.getElementById('stockValue').innerText = "RM " + (data.totalStockValue || "0.00");
+            document.getElementById('profitRisk').innerText = "RM " + (data.profitAtRisk || "0.00");
+            document.getElementById('estSavings').innerText = "RM " + (data.estSavings || "0.00");
+
+            // 2. Update AI Recommendation Panel
+            if (data.strategy) {
+                document.getElementById('aiRec').innerText = '"' + data.strategy.recommendation + '"';
+                
+                let logicHtml = '';
+                if(data.strategy.logic) {
+                    data.strategy.logic.forEach(line => {
+                        logicHtml += `<li class="mb-2">${line}</li>`;
+                    });
+                }
+                document.getElementById('aiLogic').innerHTML = logicHtml;
+            }
+
+            // 3. Update Table Inventory
             let tableHtml = '';
-            data.inventory.forEach(item => {
-                let badgeClass = item.status === 'Critical' ? 'bg-danger' : (item.status === 'Warning' ? 'bg-warning text-dark' : 'bg-success text-white');
-                tableHtml += `
-                    <tr>
-                        <td>
-                            <div class="fw-bold">${item.name}</div>
-                            <small class="text-muted">SKU: ${item.sku}</small>
-                        </td>
-                        <td>${item.stock}</td>
-                        <td class="${item.status === 'Critical' ? 'text-danger fw-bold' : ''}">${item.expiry}</td>
-                        <td><span class="badge rounded-pill ${badgeClass}">${item.status}</span></td>
-                    </tr>`;
-            });
+            // Guna 'data.inventory' atau apa-apa nama List yang AIService kau hantar
+            if (data.inventory && data.inventory.length > 0) {
+                data.inventory.forEach(item => {
+                    // Logic Status: Kita biarkan database/AI yang tentukan status
+                    let badgeClass = item.status === 'Critical' ? 'bg-danger' : 
+                                    (item.status === 'Warning' ? 'bg-warning text-dark' : 'bg-success');
+
+                    tableHtml += `
+                        <tr>
+                            <td>
+                                <div class="fw-bold">${item.name}</div>
+                                <small class="text-muted">ID: ${item.productId}</small>
+                            </td>
+                            <td>${item.stock} units</td>
+                            <td class="${item.status === 'Critical' ? 'text-danger fw-bold' : ''}">${item.expiryDate || 'N/A'}</td>
+                            <td><span class="badge rounded-pill ${badgeClass}">${item.status || 'Safe'}</span></td>
+                        </tr>`;
+                });
+            } else {
+                tableHtml = '<tr><td colspan="4" class="text-center text-muted">Tiada data produk dijumpai dalam database.</td></tr>';
+            }
             document.getElementById('inventoryTable').innerHTML = tableHtml;
 
         } catch (error) {
-            console.log("Aduh, tak boleh connect dengan Farhah! Make sure Spring Boot dah Run.", error);
+            console.error("Link sangkut!", error);
+            document.getElementById('aiRec').innerText = "Z.AI Offline: Backend tidak menjawab.";
         }
     }
 
-    // Terus panggil function ni bila page buka
-    fetchFromFarhah();
+    // Panggil sekali bila browser siap load
+    window.onload = fetchFromFarhah;
 </script>
 </body>
 </html>
