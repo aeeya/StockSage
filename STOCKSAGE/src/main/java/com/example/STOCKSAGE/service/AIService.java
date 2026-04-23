@@ -1,108 +1,107 @@
-/*package com.example.STOCKSAGE.service;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.*;
-import java.util.*;
-
-@Service
-public class AIService {
-
-    @Value("${zai.api.key}")
-    private String apiKey;
-
-    @Value("${zai.api.url}")
-    private String apiUrl;
-
-    public String getDecision(String inventoryData) {
-        RestTemplate restTemplate = new RestTemplate();
-
-        // 1. Prepare Headers
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(apiKey);
-
-        // 2. Prepare the "Prompt" (The Instructions)
-        String systemPrompt = "You are a Malaysian Retail Expert. I will give you inventory data. " +
-                              "Give me a specific pricing strategy for each item to maximize profit. " +
-                              "Keep it short and professional.";
-
-        // 3. Create the Request Body (This structure is required by Z.AI)
-        Map<String, Object> body = new HashMap<>();
-        body.put("model", "glm-4"); // Or the specific model version given in hackathon
-        body.put("messages", List.of(
-            Map.of("role", "system", "content", systemPrompt),
-            Map.of("role", "user", "content", "Here is my inventory: " + inventoryData)
-        ));
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-
-        // 4. Call the Brain
-        try {
-            ResponseEntity<String> response = restTemplate.postForEntity(apiUrl, entity, String.class);
-            return response.getBody();
-        } catch (Exception e) {
-            return "Brain is sleepy: " + e.getMessage();
-        }
-    }
-}
-
-import org.springframework.stereotype.Service;
-
-@Service
-public class AIService {
-
-    public String getAdvice(String inventoryData) {
-        // This simulates a smart recommendation instantly
-        return "{"
-            + "\"status\": \"success\","
-            + "\"recommendation\": ["
-            + "  {\"item\": \"Gardenia Bread\", \"action\": \"Discount 30%\", \"reason\": \"Expires in 2 days\"},"
-            + "  {\"item\": \"Dutch Lady Milk\", \"action\": \"Flash Sale\", \"reason\": \"High stock, low sales today\"},"
-            + "  {\"item\": \"Nasi Lemak\", \"action\": \"Price +RM1\", \"reason\": \"Festival nearby tomorrow\"}"
-            + "]"
-            + "}";
-    }
-}*/
-
 package com.example.STOCKSAGE.service;
 
+import com.example.STOCKSAGE.model.Product;
+import com.example.STOCKSAGE.repository.ProductRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @Service
 public class AIService {
 
+    @Autowired
+    private ProductRepository productRepository; 
+
     public Map<String, Object> getDecision() {
-        Map<String, Object> response = new HashMap<>();
-        
-        // 1. Data untuk Stats Cards kat atas Dashboard
-        response.put("totalStockValue", "14,250.00");
-        response.put("profitAtRisk", "1,120.00");
-        response.put("estSavings", "845.00");
+    Map<String, Object> response = new HashMap<>();
+    List<Product> realProducts = productRepository.findAll();
 
-        // 2. Data Inventory Health (Table)
-        List<Map<String, String>> inventory = new ArrayList<>();
-        inventory.add(createItem("Susu Segar (1L)", "45 units", "25 Apr 2026", "Critical", "DAIRY-001"));
-        inventory.add(createItem("Roti Gardenia Jumbo", "12 units", "28 Apr 2026", "Warning", "BAKE-102"));
-        inventory.add(createItem("Coklat Cadbury", "120 units", "15 Jun 2026", "Safe", "CONF-554"));
-        response.put("inventory", inventory);
+    double totalStockValue = 0;
+    double profitAtRisk = 0;
 
-        // 3. Z.AI Strategy Panel (Right Side)
-        Map<String, Object> strategy = new HashMap<>();
-        strategy.put("recommendation", "Launch a 'Happy Hour: Buy 1 Free 1' campaign for Susu Segar starting today at 4:00 PM.");
-        
-        List<String> logicInsights = Arrays.asList(
-            "Inventory: High stock (45 units) vs Low shelf life (3 days).",
-            "Environment: Rain forecast for tomorrow will drop foot traffic by 15%.",
-            "Goal: Liquidate stock before expiry to save RM300.00 in cost."
-        );
-        strategy.put("logic", logicInsights);
-        response.put("strategy", strategy);
+    List<Map<String, String>> inventoryList = new ArrayList<>();
+    
+    for (Product p : realProducts) {
+        int stock = (p.getStock() != null) ? p.getStock() : 0;
+        double price = (p.getBasePrice() != null) ? p.getBasePrice() : 0.0;
+        String status = calculateStatus(stock, p.getExpiryDate());
 
-        return response;
+        // Calculate Global Total Value
+        totalStockValue += (stock * price);
+
+        // Calculate Profit at Risk: Sum value of items that are Critical or Warning
+        if (status.equals("Critical")) {
+            profitAtRisk += (stock * price);
+        } else if (status.equals("Warning")) {
+            profitAtRisk += (stock * price * 0.5); // 50% risk for warning items
+        }
+
+        inventoryList.add(createItem(
+            p.getName(), 
+            stock + " units", 
+            p.getExpiryDate(), 
+            status, 
+            "SKU-" + p.getProductId()
+        ));
     }
+
+    // Est. Savings: Z.AI assumes we can recover 75% of the risk through dynamic pricing
+    double estSavings = profitAtRisk * 0.75;
+
+    response.put("totalStockValue", String.format("%.2f", totalStockValue));
+    response.put("profitAtRisk", String.format("%.2f", profitAtRisk));
+    response.put("estSavings", String.format("%.2f", estSavings));
+    response.put("inventory", inventoryList);
+
+    // Dynamic Strategy Recommendation
+    Map<String, Object> strategy = new HashMap<>();
+    if (profitAtRisk > 0) {
+        strategy.put("recommendation", "Z.AI Alert: High loss risk detected! Execute 'Quick-Clearance' for items expiring soon.");
+        strategy.put("logic", Arrays.asList(
+            "Detected RM " + String.format("%.2f", profitAtRisk) + " in high-risk inventory.",
+            "Dynamic pricing strategy can recover up to 75% of potential losses.",
+            "Priority: Items with 'Critical' status."
+        ));
+    } else {
+        strategy.put("recommendation", "Inventory healthy. Maintain current procurement cycle.");
+        strategy.put("logic", Arrays.asList("No immediate expiry or low-stock risks detected."));
+    }
+    
+    response.put("strategy", strategy);
+
+    return response;
+    }
+
+    private String calculateStatus(Integer stock, String expiryDate) {
+    // 1. Check for Null values
+    if (stock == null) return "N/A";
+
+    // 2. Quantity Logic (Stock Levels)
+    if (stock <= 5) return "Critical"; // Very low stock
+    if (stock <= 20) return "Warning"; // Running low
+
+    // 3. Expiry Date Logic
+    if (expiryDate != null && !expiryDate.isEmpty()) {
+        try {
+            // HTML date input sends format YYYY-MM-DD
+            LocalDate expiry = LocalDate.parse(expiryDate);
+            LocalDate today = LocalDate.now();
+
+            if (expiry.isBefore(today) || expiry.isEqual(today)) {
+                return "Critical"; // Already expired or expires today
+            }
+            if (expiry.isBefore(today.plusDays(7))) {
+                return "Warning";  // Expires within 7 days
+            }
+        } catch (DateTimeParseException e) {
+            // Fallback if date format is not YYYY-MM-DD
+            return "Format Error";
+        }
+    }
+    return "Safe"; // Default if stock is high and date is far away
+  }
 
     private Map<String, String> createItem(String name, String stock, String expiry, String status, String sku) {
         Map<String, String> item = new HashMap<>();

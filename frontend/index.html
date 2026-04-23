@@ -75,7 +75,7 @@
     <div class="container">
         <a class="navbar-brand" href="#">🍃 STOCKSAGE</a>
         <div class="text-white small">
-            <span class="pulse-icon me-1"></span> AI Engine Live | <span class="opacity-75">Server: http://localhost:8081</span>
+            <span class="pulse-icon me-1"></span> AI Engine Live </span>
         </div>
     </div>
 </nav>
@@ -108,7 +108,7 @@
             <div class="card card-main p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h5 class="fw-bold mb-0">Inventory Health</h5>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="fetchFromFarhah()">Refresh Data</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshDashboardData()">Refresh Data</button>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
@@ -118,6 +118,7 @@
                                 <th>Stock</th>
                                 <th>Expiry</th>
                                 <th>Status</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody id="inventoryTable">
@@ -155,7 +156,7 @@
 
     <div class="row mt-5 pb-5">
         <div class="col text-center text-muted small">
-            <p>StockSage SME Decision Support System &copy; 2026 | Built for Hackathon Success</p>
+            <p>StockSage SME Decision Support System &copy; 2026 | Hack(h)ers</p>
         </div>
     </div>
 </div>
@@ -163,70 +164,112 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    async function fetchFromFarhah() {
-        console.log("Tengah tarik data baru...");
+    /**
+     * Fetches current inventory and dashboard statistics from the server.
+     */
+    async function refreshDashboardData() {
+        console.log("Synchronizing with Oracle Database...");
         try {
-            // Pastikan URL ni tepat dengan Controller kau
             const response = await fetch('http://localhost:8081/api/dashboard-data');
-            
-            if (!response.ok) {
-                throw new Error('Respons server tidak ok');
-            }
+            if (!response.ok) throw new Error('Server response not valid');
 
             const data = await response.json();
-            console.log("Data diterima dari database:", data);
-
-            // 1. Update Stats Cards
+            
+            // Update Statistics Cards
             document.getElementById('stockValue').innerText = "RM " + (data.totalStockValue || "0.00");
             document.getElementById('profitRisk').innerText = "RM " + (data.profitAtRisk || "0.00");
             document.getElementById('estSavings').innerText = "RM " + (data.estSavings || "0.00");
 
-            // 2. Update AI Recommendation Panel
+            // Update AI Recommendation Panel
             if (data.strategy) {
                 document.getElementById('aiRec').innerText = '"' + data.strategy.recommendation + '"';
-                
                 let logicHtml = '';
-                if(data.strategy.logic) {
-                    data.strategy.logic.forEach(line => {
-                        logicHtml += `<li class="mb-2">${line}</li>`;
-                    });
-                }
+                (data.strategy.logic || []).forEach(line => {
+                    logicHtml += `<li class="mb-2">${line}</li>`;
+                });
                 document.getElementById('aiLogic').innerHTML = logicHtml;
             }
 
-            // 3. Update Table Inventory
+            // Populate Inventory Table
             let tableHtml = '';
-            // Guna 'data.inventory' atau apa-apa nama List yang AIService kau hantar
             if (data.inventory && data.inventory.length > 0) {
                 data.inventory.forEach(item => {
-                    // Logic Status: Kita biarkan database/AI yang tentukan status
+                    // Determine badge color based on stock status
                     let badgeClass = item.status === 'Critical' ? 'bg-danger' : 
-                                    (item.status === 'Warning' ? 'bg-warning text-dark' : 'bg-success');
+                                     (item.status === 'Warning' ? 'bg-warning text-dark' : 'bg-success');
+
+                    // Extract Product ID
+                    const pId = item.productId || (item.sku ? item.sku.split('-')[1] : null);
 
                     tableHtml += `
                         <tr>
                             <td>
                                 <div class="fw-bold">${item.name}</div>
-                                <small class="text-muted">ID: ${item.productId}</small>
+                                <small class="text-muted">ID: ${pId}</small>
                             </td>
-                            <td>${item.stock} units</td>
-                            <td class="${item.status === 'Critical' ? 'text-danger fw-bold' : ''}">${item.expiryDate || 'N/A'}</td>
+                            <td>${item.stock}</td>
+                            <td>${item.expiryDate || item.expiry || 'N/A'}</td>
                             <td><span class="badge rounded-pill ${badgeClass}">${item.status || 'Safe'}</span></td>
+                            <td>
+                                <div class="d-flex flex-column gap-1">
+                                    <input type="number" id="input-stock-${pId}" class="form-control form-control-sm" placeholder="New Qty" value="${item.stock}">
+                                    <input type="date" id="input-expiry-${pId}" class="form-control form-control-sm">
+                                    <button class="btn btn-success btn-sm w-100" onclick="updateProductStock(${pId})">Save Changes</button>
+                                </div>
+                            </td>
                         </tr>`;
                 });
             } else {
-                tableHtml = '<tr><td colspan="4" class="text-center text-muted">Tiada data produk dijumpai dalam database.</td></tr>';
+                tableHtml = '<tr><td colspan="5" class="text-center text-muted">No inventory records found.</td></tr>';
             }
             document.getElementById('inventoryTable').innerHTML = tableHtml;
 
         } catch (error) {
-            console.error("Link sangkut!", error);
-            document.getElementById('aiRec').innerText = "Z.AI Offline: Backend tidak menjawab.";
+            console.error("Connection failed!", error);
+            document.getElementById('aiRec').innerText = "Z.AI Offline: Connection to backend failed.";
         }
     }
 
-    // Panggil sekali bila browser siap load
-    window.onload = fetchFromFarhah;
+    /**
+     * Sends the updated stock quantity to the backend server.
+     * @param {number} productId - The ID of the product to update.
+     */
+    async function updateProductStock(productId) {
+        const newQuantity = document.getElementById(`input-stock-${productId}`).value;
+        const newExpiry = document.getElementById(`input-expiry-${productId}`).value;
+
+        if (!newQuantity || newQuantity < 0) {
+            alert("Please enter a valid stock quantity.");
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:8081/api/update-stock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    productId: productId.toString(),
+                    stock: newQuantity.toString(),
+                    expiryDate: newExpiry
+                })
+            });
+
+            const result = await response.json();
+            if (response.ok && result.status === 'success') {
+                alert("Success: Inventory updated in Oracle Database.");
+                refreshDashboardData(); // Reload table data
+            } else {
+                const err = await response.json();
+                alert("Update failed: " + (err.message || "Unknown server error"));
+            }
+        } catch (error) {
+            console.error("Error updating inventory:", error);
+            alert("Communication error: Ensure the Spring Boot server is active.");
+        }
+    }
+
+    // Initialize dashboard on page load
+    window.onload = refreshDashboardData;
 </script>
 </body>
 </html>
